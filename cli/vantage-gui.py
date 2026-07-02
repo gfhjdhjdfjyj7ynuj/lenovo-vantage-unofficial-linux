@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QStackedWidget, QButtonGroup, QCheckBox)
 from PyQt6.QtGui import QIcon, QFont, QCursor
 from PyQt6.QtCore import QTimer, Qt
+from i18n import tr
 
 DARK_STYLESHEET = """
 QMainWindow, QWidget#MainWidget, QScrollArea, QStackedWidget, QWidget#ScrollContent {
@@ -734,17 +735,13 @@ class VantageGUI(QMainWindow):
         
         dt = QComboBox()
         dt.addItems(["Disabled"])
-        dt.setEnabled(False)
         dt_row = self._create_row("Discrete GPU Toggle", "Unsupported on this architecture.", dt)
-        dt_row.setEnabled(False)
         self._set_row_state(dt_row, False)
         layout.addWidget(dt_row)
         
         oc = QComboBox()
         oc.addItems(["Disabled"])
-        oc.setEnabled(False)
         oc_row = self._create_row("GPU Overclock", "Missing NVIDIA Coolbits support.", oc)
-        oc_row.setEnabled(False)
         self._set_row_state(oc_row, False)
         layout.addWidget(oc_row)
         
@@ -774,11 +771,11 @@ class VantageGUI(QMainWindow):
         tdp_title_v.setSpacing(2)
         lbl_tdp_title = QLabel("Custom TDP (RyzenAdj)")
         lbl_tdp_title.setObjectName("RowTitle")
-        lbl_tdp_title.setStyleSheet("QLabel { color: #ffffff; font-weight: 600; font-size: 14px; }")
+
         tdp_title_v.addWidget(lbl_tdp_title)
         lbl_tdp_sub = QLabel("Override hardware power limits in mW.")
         lbl_tdp_sub.setObjectName("RowSubtitle")
-        lbl_tdp_sub.setStyleSheet("QLabel { color: #a0a0a0; font-size: 12px; }")
+
         tdp_title_v.addWidget(lbl_tdp_sub)
         tdp_header.addLayout(tdp_title_v)
         tdp_header.addStretch()
@@ -801,7 +798,7 @@ class VantageGUI(QMainWindow):
             col = QVBoxLayout()
             col.setSpacing(4)
             lbl = QLabel(label_text)
-            lbl.setStyleSheet("color: #888888; font-size: 11px; font-weight: 600;")
+            lbl.setObjectName("TdpFieldLabel")
             spin = QSpinBox()
             spin.setRange(10000, 100000)
             spin.setSingleStep(1000)
@@ -828,61 +825,61 @@ class VantageGUI(QMainWindow):
         tdp_outer.addWidget(tdp_grid_w)
         layout.addWidget(tdp_row)
         
-        # Display Section
-        lbl_disp = QLabel("Display Section")
-        lbl_disp.setObjectName("SectionTitle")
-        layout.addWidget(lbl_disp)
-        
+        # Display Section — A10: all rows disabled, hide section entirely
+        # lbl_disp = QLabel("Display")
+        # lbl_disp.setObjectName("SectionTitle")
+        # layout.addWidget(lbl_disp)
+
         dr = QComboBox()
         dr.addItems(["Native"])
         dr.setEnabled(False)
         dr_row = self._create_row("Resolution", "Managed by OS.", dr)
-        dr_row.setEnabled(False)
         self._set_row_state(dr_row, False)
+        dr_row.setVisible(False)
         layout.addWidget(dr_row)
-        
+
         ds = QComboBox()
         ds.addItems(["Native"])
         ds.setEnabled(False)
         ds_row = self._create_row("Scaling (DPI)", "Managed by OS.", ds)
-        ds_row.setEnabled(False)
         self._set_row_state(ds_row, False)
+        ds_row.setVisible(False)
         layout.addWidget(ds_row)
         
-        # System Controls
-        lbl_sys = QLabel("System Controls")
-        lbl_sys.setObjectName("SectionTitle")
-        layout.addWidget(lbl_sys)
-        
+        # System Controls — A10: all rows disabled, hide section entirely
+        # lbl_sys = QLabel("System Controls")
+        # lbl_sys.setObjectName("SectionTitle")
+        # layout.addWidget(lbl_sys)
+
         kb = QComboBox()
         kb.addItems(["Off"])
         kb.setEnabled(False)
         kb_row = self._create_row("Keyboard Backlight", "OpenRGB missing or unsupported.", kb)
-        kb_row.setEnabled(False)
         self._set_row_state(kb_row, False)
+        kb_row.setVisible(False)
         layout.addWidget(kb_row)
-        
+
         tt = QComboBox()
         tt.addItems(["On"])
         tt.setEnabled(False)
         tt_row = self._create_row("Touchpad Toggle", "Managed by OS desktop environment.", tt)
-        tt_row.setEnabled(False)
         self._set_row_state(tt_row, False)
+        tt_row.setVisible(False)
         layout.addWidget(tt_row)
-        
+
         fn = QComboBox()
         fn.addItems(["Off", "On"])
         self.fn_combos.append(fn)
         fn.currentIndexChanged.connect(self.auto_apply_change)
         self.rows['fn'] = self._create_row("Fn Lock", "Toggle media keys vs F1-F12.", fn)
         layout.addWidget(self.rows['fn'])
-        
+
         wk = QComboBox()
         wk.addItems(["Off"])
         wk.setEnabled(False)
         wk_row = self._create_row("Windows Key Lock", "Hardware mapping not found.", wk)
-        wk_row.setEnabled(False)
         self._set_row_state(wk_row, False)
+        wk_row.setVisible(False)
         layout.addWidget(wk_row)
         
         layout.addStretch()
@@ -924,9 +921,9 @@ class VantageGUI(QMainWindow):
         for i, (label, key) in enumerate(fields):
             r, c = divmod(i, 2)
             lbl_title = QLabel(label)
-            lbl_title.setStyleSheet("font-size: 12px; color: #888888; font-weight: normal;")
+            lbl_title.setObjectName("BatStatTitle")
             lbl_val = QLabel("N/A")
-            lbl_val.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+            lbl_val.setObjectName("BatStatValue")
             
             v = QVBoxLayout()
             v.addWidget(lbl_title)
@@ -1001,7 +998,7 @@ class VantageGUI(QMainWindow):
         theme.addItems(["Dark", "Light", "System"])
         theme.setEnabled(False)
         theme_row = self._create_row("Theme", "Not yet implemented.", theme)
-        self._dim_row(theme_row)
+        self._set_row_state(theme_row, False)
         layout.addWidget(theme_row)
         
         lbl_beh = QLabel("Behavior")
@@ -1013,7 +1010,7 @@ class VantageGUI(QMainWindow):
         autorun.setEnabled(False)
         autorun_row = self._create_row("Autorun", "Start with system.", autorun)
         autorun_row.setEnabled(False)
-        self._dim_row(autorun_row)
+        self._set_row_state(autorun_row, False)
         layout.addWidget(autorun_row)
         
         bl = QComboBox()
@@ -1021,7 +1018,7 @@ class VantageGUI(QMainWindow):
         bl.setEnabled(False)
         bl_row = self._create_row("Boot Logo", "UEFI boot logo. Not implemented.", bl, "Missing firmware map.")
         bl_row.setEnabled(False)
-        self._dim_row(bl_row)
+        self._set_row_state(bl_row, False)
         layout.addWidget(bl_row)
         
         layout.addStretch()
@@ -1075,23 +1072,15 @@ class VantageGUI(QMainWindow):
                 title_lbl = child
 
         if not supported:
-            widget.setEnabled(False)
-            if title_lbl:
-                title_lbl.setStyleSheet("QLabel { color: #5a5a5a; font-weight: 600; font-size: 14px; }")
-            if sub_lbl:
-                sub_lbl.setStyleSheet("QLabel { color: #404040; font-size: 12px; }")
-                if reason:
-                    sub_lbl.setText(reason)
+            self._set_row_state(widget, False)
+            if sub_lbl and reason:
+                sub_lbl.setText(reason)
         elif partial:
-            widget.setEnabled(True)
+            self._set_row_state(widget, True)
             if sub_lbl and partial_warning:
                 sub_lbl.setText(sub_lbl.text() + f" ({partial_warning})")
         else:
-            widget.setEnabled(True)
-            if title_lbl:
-                title_lbl.setStyleSheet("QLabel { color: #ffffff; font-weight: 600; font-size: 14px; }")
-            if sub_lbl:
-                sub_lbl.setStyleSheet("QLabel { color: #a0a0a0; font-size: 12px; }")
+            self._set_row_state(widget, True)
     def _on_tdp_toggle(self, checked):
         """Enable/disable TDP spinboxes when the checkbox is toggled."""
         for spin in self.tdp_spins:
