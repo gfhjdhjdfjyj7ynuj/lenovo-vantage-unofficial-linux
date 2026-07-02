@@ -60,11 +60,16 @@ QFrame#DashboardCard {
     border: 1px solid #2a2a2a;
     border-radius: 8px;
 }
+
+/* ── Settings rows ──────────────────────────────────────────────── */
+/* A1/A9: All row label colors are driven purely by QSS — no inline
+   setStyleSheet on RowTitle/RowSubtitle anywhere in Python code.
+   The :disabled cascade on the QFrame propagates to child QLabels. */
 QFrame#SettingsRow {
     background-color: #1e1e1e;
     border: 1px solid #2a2a2a;
     border-radius: 8px;
-    min-height: 68px;
+    min-height: 64px;
 }
 QFrame#SettingsRow:disabled {
     background-color: #161616;
@@ -74,17 +79,44 @@ QFrame#SettingsRow QLabel#RowTitle {
     color: #ffffff;
     font-weight: 600;
     font-size: 14px;
+    background: transparent;
 }
 QFrame#SettingsRow QLabel#RowSubtitle {
-    color: #b0b0b0;
+    color: #a0a0a0;
     font-size: 12px;
+    background: transparent;
 }
 QFrame#SettingsRow:disabled QLabel#RowTitle {
     color: #5a5a5a;
 }
 QFrame#SettingsRow:disabled QLabel#RowSubtitle {
-    color: #404040;
+    color: #3e3e3e;
 }
+
+/* A6: TDP field labels — styled via objectName, not inline stylesheet */
+QLabel#TdpFieldLabel {
+    color: #888888;
+    font-size: 11px;
+    font-weight: 600;
+}
+QFrame#SettingsRow:disabled QLabel#TdpFieldLabel {
+    color: #4a4a4a;
+}
+
+/* A7: Battery stat labels — isolated from QProgressBar chunk colors */
+QLabel#BatStatTitle {
+    font-size: 12px;
+    color: #888888;
+    font-weight: normal;
+    background: transparent;
+}
+QLabel#BatStatValue {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+    background: transparent;
+}
+
 QLabel {
     color: #ffffff;
 }
@@ -174,6 +206,9 @@ QPushButton#ApplyBtn:disabled {
     background-color: #333333;
     color: #777777;
 }
+
+/* A3: Progress bar — track is always visible (background-color below).
+   No min-width on chunk so 0% renders as a fully empty track. */
 QProgressBar {
     background-color: #2a2a2a;
     border: none;
@@ -183,7 +218,7 @@ QProgressBar {
 }
 QProgressBar::chunk {
     border-radius: 4px;
-    min-width: 6px;
+    background-color: #27ae60;
 }
 QComboBox:disabled::drop-down {
     border-left: 1px solid #333333;
@@ -453,41 +488,44 @@ class VantageGUI(QMainWindow):
         row.setObjectName(obj_name)
         h = QHBoxLayout(row)
         h.setContentsMargins(20, 15, 20, 15)
-        
+
         text_v = QVBoxLayout()
         text_v.setSpacing(3)
         lbl_title = QLabel(title)
         lbl_title.setObjectName("RowTitle")
-        # Force color via direct stylesheet — bypasses Qt's internal disabled-palette cascade
-        lbl_title.setStyleSheet("QLabel { color: #ffffff; font-weight: 600; font-size: 14px; }")
         text_v.addWidget(lbl_title)
-        
+
         if subtitle:
             lbl_sub = QLabel(subtitle)
             lbl_sub.setObjectName("RowSubtitle")
-            lbl_sub.setWordWrap(False)          # A2: prevent multi-line wrapping
-            lbl_sub.setStyleSheet("QLabel { color: #a0a0a0; font-size: 12px; }")
+            lbl_sub.setWordWrap(False)
+            lbl_sub.setTextFormat(Qt.TextFormat.PlainText)
+            # A2/A5/A8: elide long subtitles instead of wrapping
+            lbl_sub.setSizePolicy(QLabel.SizePolicy.Expanding, QLabel.SizePolicy.Preferred)
             text_v.addWidget(lbl_sub)
-        
+
         h.addLayout(text_v)
         h.addStretch()
-        
+
         if tooltip:
             h.addWidget(self._make_info_icon(tooltip))
             h.addSpacing(10)
         if widget:
             h.addWidget(widget)
-        
+
         return row
 
-    def _dim_row(self, row):
-        """Explicitly dim all labels in a hardcoded-disabled row.
-        Needed because _create_row uses direct setStyleSheet which bypasses Qt's palette cascade."""
-        for child in row.findChildren(QLabel):
-            if child.objectName() == "RowTitle":
-                child.setStyleSheet("QLabel { color: #5a5a5a; font-weight: 600; font-size: 14px; }")
-            elif child.objectName() == "RowSubtitle":
-                child.setStyleSheet("QLabel { color: #3e3e3e; font-size: 12px; }")
+    def _set_row_state(self, row, enabled):
+        """Toggle a settings row between enabled and disabled.
+
+        All visual styling (title/subtitle colors, background) is driven
+        purely by QSS via the QFrame#SettingsRow:disabled cascade — no
+        inline setStyleSheet is used, so Qt's palette propagation works
+        correctly in both directions. (A1, A9)
+        """
+        row.setEnabled(enabled)
+        for child in row.findChildren(QWidget):
+            child.setEnabled(enabled)
 
     def _create_scroll_page(self, title):
         page = QWidget()
@@ -699,7 +737,7 @@ class VantageGUI(QMainWindow):
         dt.setEnabled(False)
         dt_row = self._create_row("Discrete GPU Toggle", "Unsupported on this architecture.", dt)
         dt_row.setEnabled(False)
-        self._dim_row(dt_row)
+        self._set_row_state(dt_row, False)
         layout.addWidget(dt_row)
         
         oc = QComboBox()
@@ -707,7 +745,7 @@ class VantageGUI(QMainWindow):
         oc.setEnabled(False)
         oc_row = self._create_row("GPU Overclock", "Missing NVIDIA Coolbits support.", oc)
         oc_row.setEnabled(False)
-        self._dim_row(oc_row)
+        self._set_row_state(oc_row, False)
         layout.addWidget(oc_row)
         
         # Thermal / Fan
@@ -800,7 +838,7 @@ class VantageGUI(QMainWindow):
         dr.setEnabled(False)
         dr_row = self._create_row("Resolution", "Managed by OS.", dr)
         dr_row.setEnabled(False)
-        self._dim_row(dr_row)
+        self._set_row_state(dr_row, False)
         layout.addWidget(dr_row)
         
         ds = QComboBox()
@@ -808,7 +846,7 @@ class VantageGUI(QMainWindow):
         ds.setEnabled(False)
         ds_row = self._create_row("Scaling (DPI)", "Managed by OS.", ds)
         ds_row.setEnabled(False)
-        self._dim_row(ds_row)
+        self._set_row_state(ds_row, False)
         layout.addWidget(ds_row)
         
         # System Controls
@@ -821,7 +859,7 @@ class VantageGUI(QMainWindow):
         kb.setEnabled(False)
         kb_row = self._create_row("Keyboard Backlight", "OpenRGB missing or unsupported.", kb)
         kb_row.setEnabled(False)
-        self._dim_row(kb_row)
+        self._set_row_state(kb_row, False)
         layout.addWidget(kb_row)
         
         tt = QComboBox()
@@ -829,7 +867,7 @@ class VantageGUI(QMainWindow):
         tt.setEnabled(False)
         tt_row = self._create_row("Touchpad Toggle", "Managed by OS desktop environment.", tt)
         tt_row.setEnabled(False)
-        self._dim_row(tt_row)
+        self._set_row_state(tt_row, False)
         layout.addWidget(tt_row)
         
         fn = QComboBox()
@@ -844,7 +882,7 @@ class VantageGUI(QMainWindow):
         wk.setEnabled(False)
         wk_row = self._create_row("Windows Key Lock", "Hardware mapping not found.", wk)
         wk_row.setEnabled(False)
-        self._dim_row(wk_row)
+        self._set_row_state(wk_row, False)
         layout.addWidget(wk_row)
         
         layout.addStretch()
@@ -919,7 +957,7 @@ class VantageGUI(QMainWindow):
         mt.setEnabled(False)
         mt_row = self._create_row("Master Toggle", "Automation rules not yet implemented.", mt)
         mt_row.setEnabled(False)
-        self._dim_row(mt_row)
+        self._set_row_state(mt_row, False)
         layout.addWidget(mt_row)
         
         lbl_trig = QLabel("Triggers & Actions")
@@ -931,7 +969,7 @@ class VantageGUI(QMainWindow):
         tr.setEnabled(False)
         tr_row = self._create_row("Available Triggers", "Select trigger conditions.", tr)
         tr_row.setEnabled(False)
-        self._dim_row(tr_row)
+        self._set_row_state(tr_row, False)
         layout.addWidget(tr_row)
         
         ac = QComboBox()
@@ -939,7 +977,7 @@ class VantageGUI(QMainWindow):
         ac.setEnabled(False)
         ac_row = self._create_row("Mapped Actions", "Define behavior upon trigger.", ac)
         ac_row.setEnabled(False)
-        self._dim_row(ac_row)
+        self._set_row_state(ac_row, False)
         layout.addWidget(ac_row)
         
         layout.addStretch()
@@ -956,7 +994,7 @@ class VantageGUI(QMainWindow):
         lang.addItems(["System Default", "English"])
         lang.setEnabled(False)
         lang_row = self._create_row("Language", "Not yet implemented.", lang)
-        self._dim_row(lang_row)
+        self._set_row_state(lang_row, False)
         layout.addWidget(lang_row)
         
         theme = QComboBox()
