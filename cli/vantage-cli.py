@@ -10,8 +10,8 @@ def get_service():
         obj = bus.get_object("org.lenovo.Vantage", "/org/lenovo/Vantage")
         return dbus.Interface(obj, "org.lenovo.Vantage")
     except dbus.exceptions.DBusException as e:
-        print(f"Error connecting to Vantage daemon: {e}", file=sys.stderr)
-        print("Is the vantaged service running?", file=sys.stderr)
+        print(f"Error connecting to Vantage service: {e}", file=sys.stderr)
+        print("Is the vantageservice running?", file=sys.stderr)
         sys.exit(1)
 
 def dbus_to_py(obj):

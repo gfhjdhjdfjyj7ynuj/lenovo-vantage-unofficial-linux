@@ -5,10 +5,11 @@ import dbus
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QPushButton, QSpinBox, QMessageBox,
                              QGridLayout, QComboBox, QProgressBar, QFrame, QScrollArea,
-                             QStackedWidget, QButtonGroup, QCheckBox)
+                             QStackedWidget, QButtonGroup, QCheckBox, QSizePolicy, QDialog,
+                             QDialogButtonBox)
 from PyQt6.QtGui import QIcon, QFont, QCursor
 from PyQt6.QtCore import QTimer, Qt
-from i18n import tr
+from i18n import tr, load_locale, save_locale, load_theme, save_theme, is_first_run, set_locale, get_locale
 
 DARK_STYLESHEET = """
 QMainWindow, QWidget#MainWidget, QScrollArea, QStackedWidget, QWidget#ScrollContent {
@@ -293,6 +294,321 @@ QCheckBox::indicator:unchecked:hover {
 }
 """
 
+LIGHT_STYLESHEET = """
+QMainWindow, QWidget#MainWidget, QScrollArea, QStackedWidget, QWidget#ScrollContent {
+    background-color: #f5f5f5;
+    color: #1a1a1a;
+    font-family: 'Inter', 'Noto Sans', 'Segoe UI', sans-serif;
+    border: none;
+}
+QToolTip {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 12px;
+}
+QWidget#Sidebar {
+    background-color: #ececec;
+    border-right: 1px solid #d0d0d0;
+}
+QPushButton.SidebarBtn {
+    background-color: transparent;
+    color: #555555;
+    text-align: left;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    margin: 2px 10px;
+}
+QPushButton.SidebarBtn:hover:!checked {
+    background-color: #dcdcdc;
+    color: #1a1a1a;
+}
+QPushButton.SidebarBtn:checked {
+    background-color: #0078d4;
+    color: #ffffff;
+    border-left: 3px solid #005a9e;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+}
+QFrame#SidebarDivider {
+    background-color: #cccccc;
+    max-height: 1px;
+    margin: 6px 14px;
+}
+QFrame#DashboardCard {
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+}
+QFrame#SettingsRow {
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    min-height: 64px;
+}
+QFrame#SettingsRow:disabled {
+    background-color: #f0f0f0;
+    border: 1px solid #e0e0e0;
+}
+QFrame#SettingsRow QLabel#RowTitle {
+    color: #1a1a1a;
+    font-weight: 600;
+    font-size: 14px;
+    background: transparent;
+}
+QFrame#SettingsRow QLabel#RowSubtitle {
+    color: #666666;
+    font-size: 12px;
+    background: transparent;
+}
+QFrame#SettingsRow:disabled QLabel#RowTitle {
+    color: #999999;
+}
+QFrame#SettingsRow:disabled QLabel#RowSubtitle {
+    color: #bbbbbb;
+}
+QLabel#TdpFieldLabel {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 600;
+}
+QFrame#SettingsRow:disabled QLabel#TdpFieldLabel {
+    color: #bbbbbb;
+}
+QLabel#BatStatTitle {
+    font-size: 12px;
+    color: #666666;
+    font-weight: normal;
+    background: transparent;
+}
+QLabel#BatStatValue {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1a1a1a;
+    background: transparent;
+}
+QLabel {
+    color: #1a1a1a;
+}
+QLabel#MonitorTitle {
+    font-weight: bold;
+    font-size: 18px;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+}
+QLabel#DeviceSubtitle {
+    font-size: 14px;
+    color: #666666;
+    padding-bottom: 8px;
+}
+QLabel#MonitorLabel {
+    color: #444444;
+    font-size: 13px;
+}
+QLabel#SectionTitle {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1a1a1a;
+    margin-top: 25px;
+    margin-bottom: 8px;
+}
+QLabel#PageTitle {
+    font-size: 26px;
+    font-weight: bold;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+QComboBox, QSpinBox {
+    background-color: #0078d4;
+    border: 1px solid #005a9e;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: #ffffff;
+    min-width: 130px;
+    max-width: 200px;
+    font-size: 13px;
+    font-weight: 500;
+    selection-background-color: #005a9e;
+}
+QSpinBox {
+    max-width: 170px;
+}
+QComboBox:disabled, QSpinBox:disabled {
+    background-color: #e0e0e0;
+    color: #999999;
+    border: 1px solid #cccccc;
+}
+QComboBox:hover:!disabled, QSpinBox:hover:!disabled {
+    background-color: #106ebe;
+    border: 1px solid #0078d4;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 28px;
+    border-left: 1px solid rgba(255,255,255,0.15);
+    border-radius: 0 6px 6px 0;
+}
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #ffffff;
+    margin: 0 4px;
+}
+QComboBox::down-arrow:disabled {
+    border-top: 6px solid #aaaaaa;
+}
+QPushButton#ApplyBtn {
+    background-color: #0078d4;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 6px;
+    padding: 8px 16px;
+}
+QPushButton#ApplyBtn:hover:!disabled {
+    background-color: #106ebe;
+}
+QPushButton#ApplyBtn:disabled {
+    background-color: #cccccc;
+    color: #888888;
+}
+QProgressBar {
+    background-color: #d0d0d0;
+    border: none;
+    border-radius: 4px;
+    text-align: right;
+    color: transparent;
+}
+QProgressBar::chunk {
+    border-radius: 4px;
+    background-color: #27ae60;
+}
+QComboBox:disabled::drop-down {
+    border-left: 1px solid #cccccc;
+}
+QScrollBar:vertical {
+    border: none;
+    background: #f5f5f5;
+    width: 10px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar:handle:vertical {
+    background: #cccccc;
+    min-height: 20px;
+    border-radius: 5px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QFrame#ChangesBar {
+    background-color: #e0ecf5;
+    border-bottom: 1px solid #0078d4;
+}
+QLabel#ChangesLabel {
+    color: #005a9e;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton#ApplyAllBtn {
+    background-color: #0078d4;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 6px;
+    padding: 7px 20px;
+    border: none;
+}
+QPushButton#ApplyAllBtn:hover {
+    background-color: #106ebe;
+}
+QPushButton#RevertBtn {
+    background-color: transparent;
+    color: #555555;
+    font-size: 13px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 7px 16px;
+}
+QPushButton#RevertBtn:hover {
+    color: #1a1a1a;
+    border-color: #999999;
+    background-color: #dcdcdc;
+}
+QCheckBox {
+    color: #444444;
+    font-size: 13px;
+    spacing: 8px;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #999999;
+    background-color: #ffffff;
+}
+QCheckBox::indicator:checked {
+    background-color: #0078d4;
+    border-color: #005a9e;
+}
+QCheckBox::indicator:unchecked:hover {
+    border-color: #0078d4;
+}
+QPushButton#ThemeBtn {
+    background-color: transparent;
+    color: #555555;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+QPushButton#ThemeBtn:hover {
+    color: #1a1a1a;
+    border-color: #0078d4;
+    background-color: #e8e8e8;
+}
+"""
+
+def detect_system_theme() -> str:
+    """Detect whether the desktop prefers a dark or light theme.
+
+    Tries gsettings (GNOME/Zorin/Ubuntu) first, then falls back to Qt palette.
+    Returns 'dark' or 'light'.
+    """
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+            capture_output=True, text=True, timeout=3
+        )
+        scheme = result.stdout.strip().lower()
+        if "dark" in scheme:
+            return "dark"
+        if "light" in scheme or "default" in scheme:
+            return "light"
+    except Exception:
+        pass
+
+    try:
+        from PyQt6.QtGui import QPalette
+        app = QApplication.instance()
+        if app:
+            bg = app.palette().color(QPalette.ColorRole.Window)
+            if bg.value() < 128:
+                return "dark"
+    except Exception:
+        pass
+
+    return "dark"
+
 def get_battery_info():
     info = {"percent": "N/A", "status": "N/A", "health": "N/A", "cycles": "N/A", "current": "N/A", "full": "N/A", "design": "N/A"}
     for bat in os.listdir("/sys/class/power_supply/"):
@@ -344,7 +660,51 @@ class VantageService:
             obj = bus.get_object("org.lenovo.Vantage", "/org/lenovo/Vantage")
             self.iface = dbus.Interface(obj, "org.lenovo.Vantage")
         except dbus.exceptions.DBusException as e:
-            raise Exception("Daemon not running or accessible") from e
+            raise Exception("Service not running or accessible") from e
+
+
+class LanguageDialog(QDialog):
+    """First-run language selection dialog."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("Language dialog title"))
+        self.setModal(True)
+        self.setFixedSize(360, 200)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+
+        label = QLabel(tr("Language dialog text"))
+        label.setStyleSheet("font-size: 15px; font-weight: 600;")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(label)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+
+        self.btn_en = QPushButton("English")
+        self.btn_en.setMinimumHeight(40)
+        self.btn_en.clicked.connect(lambda: self._choose("en"))
+        btn_row.addWidget(self.btn_en)
+
+        self.btn_ru = QPushButton("Русский")
+        self.btn_ru.setMinimumHeight(40)
+        self.btn_ru.clicked.connect(lambda: self._choose("ru"))
+        btn_row.addWidget(self.btn_ru)
+
+        layout.addLayout(btn_row)
+
+        self._chosen = None
+
+    def _choose(self, code):
+        self._chosen = code
+        self.accept()
+
+    def chosen(self):
+        return self._chosen
+
 
 class VantageGUI(QMainWindow):
     def __init__(self, svc):
@@ -353,8 +713,11 @@ class VantageGUI(QMainWindow):
         self.setWindowTitle("Lenovo Vantage Linux Unofficial")
         self.resize(1000, 750)
         self.setMinimumSize(900, 600)
-        self.setStyleSheet(DARK_STYLESHEET)
-        self.statusBar().showMessage("Ready", 3000)
+
+        # ── Theme initialization ─────────────────────────────────────────
+        self.current_theme = load_theme()
+        self._apply_theme(self.current_theme)
+        self.statusBar().showMessage(tr("Status ready"), 3000)
         
         # UI Element Tracking for easy updates
         self.pm_combos = []
@@ -435,22 +798,29 @@ class VantageGUI(QMainWindow):
         bar_h.setContentsMargins(24, 0, 24, 0)
         bar_h.setSpacing(12)
 
-        lbl_pending = QLabel("● Unsaved changes")
+        lbl_pending = QLabel(tr("Unsaved changes"))
         lbl_pending.setObjectName("ChangesLabel")
         bar_h.addWidget(lbl_pending)
         bar_h.addStretch()
 
-        btn_apply_all = QPushButton("Apply Changes")
+        btn_apply_all = QPushButton(tr("Apply Changes"))
         btn_apply_all.setObjectName("ApplyAllBtn")
         btn_apply_all.clicked.connect(self.apply_all)
         bar_h.addWidget(btn_apply_all)
 
-        btn_revert = QPushButton("Revert")
+        btn_revert = QPushButton(tr("Revert"))
         btn_revert.setObjectName("RevertBtn")
         btn_revert.clicked.connect(self.revert_all)
         bar_h.addWidget(btn_revert)
 
         right_layout.addWidget(self.changes_bar)
+
+        # ── Theme toggle button (always visible in top-right) ───────────────
+        self.theme_btn = QPushButton(tr("Light Theme"))
+        self.theme_btn.setObjectName("ThemeBtn")
+        self.theme_btn.setFixedHeight(36)
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        right_layout.addWidget(self.theme_btn, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
         # ── Stacked Widget ───────────────────────────────────────────────────
         self.stack = QStackedWidget()
@@ -502,7 +872,7 @@ class VantageGUI(QMainWindow):
             lbl_sub.setWordWrap(False)
             lbl_sub.setTextFormat(Qt.TextFormat.PlainText)
             # A2/A5/A8: elide long subtitles instead of wrapping
-            lbl_sub.setSizePolicy(QLabel.SizePolicy.Expanding, QLabel.SizePolicy.Preferred)
+            lbl_sub.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             text_v.addWidget(lbl_sub)
 
         h.addLayout(text_v)
@@ -1040,7 +1410,7 @@ class VantageGUI(QMainWindow):
         v.addWidget(QLabel("A robust, native hardware control suite built for Lenovo laptops running on Linux."))
         v.addSpacing(15)
         v.addWidget(QLabel("<b>Version:</b> 1.0.0-initial-release"))
-        v.addWidget(QLabel("<b>Backend:</b> D-Bus System Daemon"))
+        v.addWidget(QLabel("<b>Backend:</b> D-Bus System Service"))
         v.addWidget(QLabel("<b>Dependencies:</b> supergfxctl, ryzenadj, power-profiles-daemon"))
         
         lbl_github = QLabel('<b>GitHub:</b> <a href="https://github.com/nightcodex7/lenovo-vantage-unofficial-linux" style="color: #0078d4; text-decoration: none;">nightcodex7/vantage</a>')
@@ -1109,7 +1479,7 @@ class VantageGUI(QMainWindow):
         if self.tdp_check.isChecked():
             self.apply_tdp()
         self._clear_pending()
-        self.statusBar().showMessage("✓ All changes applied.", 3000)
+        self.statusBar().showMessage(tr("Status all applied"), 3000)
 
     def revert_all(self):
         """Reload hardware state and hide the pending bar."""
@@ -1117,7 +1487,23 @@ class VantageGUI(QMainWindow):
         if hasattr(self, 'tdp_check'):
             self.tdp_check.setChecked(False)
         self._clear_pending()
-        self.statusBar().showMessage("Reverted to last saved state.", 2000)
+        self.statusBar().showMessage(tr("Status reverted"), 2000)
+
+    def _apply_theme(self, theme: str):
+        if theme == "light":
+            self.setStyleSheet(LIGHT_STYLESHEET)
+            self.theme_btn.setText(tr("Dark Theme"))
+        else:
+            self.setStyleSheet(DARK_STYLESHEET)
+            self.theme_btn.setText(tr("Light Theme"))
+
+    def toggle_theme(self):
+        if self.current_theme == "dark":
+            self.current_theme = "light"
+        else:
+            self.current_theme = "dark"
+        self._apply_theme(self.current_theme)
+        save_theme(self.current_theme)
 
 
     def auto_apply_change(self):
@@ -1322,7 +1708,7 @@ def main():
     try:
         svc = VantageService()
     except Exception as e:
-        QMessageBox.critical(None, "Daemon Error", str(e))
+        QMessageBox.critical(None, tr("Service Error"), str(e))
         sys.exit(1)
         
     gui = VantageGUI(svc)

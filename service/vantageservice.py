@@ -25,7 +25,7 @@ def main():
         sys.exit(1)
 
     service = VantageService(bus)
-    print("Lenovo Vantage Daemon running...")
+    print("Lenovo Vantage Service running...")
 
     from automation import AutomationEngine
     engine = AutomationEngine(service)

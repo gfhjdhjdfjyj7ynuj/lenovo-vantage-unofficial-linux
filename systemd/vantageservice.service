@@ -1,11 +1,11 @@
 [Unit]
-Description=Lenovo Vantage Linux Daemon
+Description=Lenovo Vantage Linux Service
 After=dbus.service
 
 [Service]
 Type=dbus
 BusName=org.lenovo.Vantage
-ExecStart=/usr/lib/vantage/daemon/vantaged.py
+ExecStart=/usr/lib/vantage/service/vantageservice.py
 User=root
 Restart=on-failure
 

@@ -1,87 +1,123 @@
 #!/bin/bash
+#
+# Universal installer for Lenovo Vantage Linux.
+# Does NOT guess the distribution — installs everything into fixed
+# system paths and reloads systemd + D-Bus.
+#
+# Usage:
+#   sudo ./install.sh            # install
+#   sudo ./install.sh --uninstall # remove
+#
 
-# Function to detect package manager
-detect_package_manager() {
-    if command -v pacman &> /dev/null; then
-        echo "pacman"
-    elif command -v apt &> /dev/null; then
-        echo "apt"
-    elif command -v dnf &> /dev/null; then
-        echo "dnf"
-    elif command -v zypper &> /dev/null; then
-        echo "zypper"
-    else
-        echo "unknown"
+set -e
+
+INSTALL_DIR="/usr/lib/vantage"
+SYSTEMD_DIR="/etc/systemd/system"
+DBUS_DIR="/etc/dbus-1/system.d"
+APP_DIR="/usr/share/applications"
+ICON_DIR="/usr/share/icons/hicolor/scalable/apps"
+BIN_DIR="/usr/bin"
+
+require_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo "This script must be run as root. Try: sudo $0"
+        exit 1
     fi
 }
 
-# check for the distro
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    distro=$ID_LIKE
+check_python_deps() {
+    local missing=()
+    python3 -c "import dbus"    2>/dev/null || missing+=("python3-dbus")
+    python3 -c "import PyQt6"   2>/dev/null || missing+=("python3-pyqt6")
+    python3 -c "import gi"      2>/dev/null || missing+=("python3-gi (PyGObject)")
 
-    # Some distros like Fedora doesn't have "ID_LIKE" in their /etc/os-release file, sadly
-    if [ -z "$distro" ]; then
-        distro=$ID
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "WARNING: Missing Python dependencies: ${missing[*]}"
+        echo "Install them with your package manager before running the GUI/CLI."
+        echo "  Debian/Ubuntu: sudo apt install ${missing[*]}"
+        echo "  Fedora:        sudo dnf install ${missing[*]}"
+        echo "  Arch:          sudo pacman -S ${missing[*]}"
+        echo ""
     fi
+}
+
+do_install() {
+    echo "=== Installing Lenovo Vantage Linux ==="
+
+    check_python_deps
+
+    echo "Copying program files to $INSTALL_DIR ..."
+    mkdir -p "$INSTALL_DIR/service/features" "$INSTALL_DIR/service/ipc" "$INSTALL_DIR/cli"
+    cp -r service/* "$INSTALL_DIR/service/"
+    cp -r cli/*   "$INSTALL_DIR/cli/"
+    chmod +x "$INSTALL_DIR/service/vantageservice.py"
+    chmod +x "$INSTALL_DIR/cli/vantage-gui.py"
+    chmod +x "$INSTALL_DIR/cli/vantage-cli.py"
+
+    echo "Installing systemd service ..."
+    cp systemd/vantageservice.service "$SYSTEMD_DIR/"
+    chmod 644 "$SYSTEMD_DIR/vantageservice.service"
+
+    echo "Installing D-Bus policy ..."
+    mkdir -p "$DBUS_DIR"
+    cp dbus/org.lenovo.Vantage.conf "$DBUS_DIR/"
+    chmod 644 "$DBUS_DIR/org.lenovo.Vantage.conf"
+
+    echo "Installing desktop entry and icon ..."
+    mkdir -p "$APP_DIR" "$ICON_DIR"
+    cp vantage.desktop "$APP_DIR/"
+    if [ -f "vantage.png" ]; then
+        cp vantage.png "$ICON_DIR/"
+    fi
+
+    echo "Creating CLI / GUI launchers ..."
+    cat > "$BIN_DIR/vantage-gui" <<'EOF'
+#!/bin/bash
+cd /usr/lib/vantage/cli && exec python3 vantage-gui.py "$@"
+EOF
+    cat > "$BIN_DIR/vantage-cli" <<'EOF'
+#!/bin/bash
+cd /usr/lib/vantage/cli && exec python3 vantage-cli.py "$@"
+EOF
+    chmod +x "$BIN_DIR/vantage-gui" "$BIN_DIR/vantage-cli"
+
+    echo "Reloading systemd and D-Bus ..."
+    systemctl daemon-reload
+    systemctl reload dbus 2>/dev/null || true
+
+    echo "Enabling service ..."
+    systemctl enable --now vantageservice.service
+
+    echo ""
+    echo "=== Installation complete ==="
+    echo "Service:  systemctl status vantageservice"
+    echo "GUI:      vantage-gui"
+    echo "CLI:      vantage-cli --help"
+}
+
+do_uninstall() {
+    echo "=== Uninstalling Lenovo Vantage Linux ==="
+
+    systemctl disable --now vantageservice.service 2>/dev/null || true
+
+    rm -f  "$SYSTEMD_DIR/vantageservice.service"
+    rm -f  "$DBUS_DIR/org.lenovo.Vantage.conf"
+    rm -f  "$APP_DIR/vantage.desktop"
+    rm -f  "$ICON_DIR/vantage.png"
+    rm -f  "$BIN_DIR/vantage-gui" "$BIN_DIR/vantage-cli" "$BIN_DIR/vantage"
+    rm -rf "$INSTALL_DIR"
+    rm -rf /etc/lenovo-vantage
+
+    systemctl daemon-reload
+    systemctl reload dbus 2>/dev/null || true
+
+    echo "=== Uninstall complete ==="
+}
+
+require_root
+
+if [ "$1" = "--uninstall" ]; then
+    do_uninstall
+else
+    do_install
 fi
-
-case $distro in
-  # Now Vantage can be installed on Cachy OS, ArcoLinux... you name it!
-  "arch")
-    echo "Installing on Arch Linux or derivative"
-    pacman -Qi zenity xorg-xinput networkmanager python-dbus python-gobject python-pyqt6 &> /dev/null || sudo pacman -S zenity xorg-xinput networkmanager python-dbus python-gobject python-pyqt6
-    ;;
-
-  # Now Vantage can not only be installed on Ubuntu or POP OS but also Kubuntu, KDE Neon, Xubuntu...
-  "debian")
-    echo "Installing on Debian or derivative"
-    dpkg -s zenity xinput python3-dbus python3-gi python3-pyqt6 &> /dev/null || sudo apt install zenity xinput python3-dbus python3-gi python3-pyqt6
-    ;;
-  
-  # Entry for Linux Mint 21.3 Edge
-  "ubuntu debian")
-    echo "Installing on Linux Mint Edge"
-    dpkg -s zenity xinput python3-dbus python3-gi python3-pyqt6 &> /dev/null || sudo apt install zenity xinput python3-dbus python3-gi python3-pyqt6
-    ;;  
-
-  "fedora")
-    echo "Installing on Fedora"
-    rpm -q zenity xinput NetworkManager pipewire-pulseaudio python3-dbus python3-gobject python3-pyqt6 &> /dev/null || sudo dnf install zenity xinput NetworkManager pipewire-pulseaudio python3-dbus python3-gobject python3-pyqt6
-    ;;
-
-  "opensuse-tumbleweed")
-    echo "Installing on OpenSuse"
-    rpm -q zenity xinput NetworkManager pipewire-pulseaudio python3-dbus-python python3-gobject python3-qt6 &> /dev/null || sudo zypper install zenity xinput NetworkManager pipewire-pulseaudio python3-dbus-python python3-gobject python3-qt6
-    ;;
-
-  *)
-    echo "Unknown Distro, attempting package manager detection..."
-    package_manager=$(detect_package_manager)
-    
-    case $package_manager in
-        "pacman")
-            echo "Detected pacman package manager"
-            pacman -Qi zenity xorg-xinput networkmanager python-dbus python-gobject python-pyqt6 &> /dev/null || sudo pacman -S zenity xorg-xinput networkmanager python-dbus python-gobject python-pyqt6
-            ;;
-        "apt")
-            echo "Detected apt package manager"
-            dpkg -s zenity xinput python3-dbus python3-gi python3-pyqt6 &> /dev/null || sudo apt install zenity xinput python3-dbus python3-gi python3-pyqt6
-            ;;
-        "dnf")
-            echo "Detected dnf package manager"
-            rpm -q zenity xinput NetworkManager pipewire-pulseaudio python3-dbus python3-gobject python3-pyqt6 &> /dev/null || sudo dnf install zenity xinput NetworkManager pipewire-pulseaudio python3-dbus python3-gobject python3-pyqt6
-            ;;
-        "zypper")
-            echo "Detected zypper package manager"
-            rpm -q zenity xinput NetworkManager pipewire-pulseaudio python3-dbus-python python3-gobject python3-qt6 &> /dev/null || sudo zypper install zenity xinput NetworkManager pipewire-pulseaudio python3-dbus-python python3-gobject python3-qt6
-            ;;
-        *)
-            echo "Unable to detect compatible package manager, exiting."
-            exit 1
-            ;;
-    esac
-    ;;
-esac
-
-echo "Requirements are installed"
