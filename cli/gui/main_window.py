@@ -65,7 +65,6 @@ class VantageGUI(QMainWindow):
 
         # ── Theme ─────────────────────────────────────────────────────
         self.current_theme = load_theme()
-        self._apply_theme(self.current_theme)
         self.statusBar().showMessage(tr("Status ready"), 3000)
 
         # If service is in limited mode, show a warning
@@ -196,6 +195,7 @@ class VantageGUI(QMainWindow):
         self.stack.addWidget(create_about_page(self))
 
         self.switch_tab(0)
+        self._apply_theme(self.current_theme)
         self.load_state()
 
         # Sensor timer

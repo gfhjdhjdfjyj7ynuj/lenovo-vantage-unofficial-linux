@@ -18,7 +18,7 @@ from gui.main_window import VantageGUI
 
 
 def main():
-    os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
+    os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
     os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 

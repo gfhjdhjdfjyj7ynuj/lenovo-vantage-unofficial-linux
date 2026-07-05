@@ -83,7 +83,7 @@ sudo pacman -S python python-dbus python-pyqt6 supergfxctl
      vantage-gui
      ```
 
-> **Note on Display Servers:** The GUI explicitly requests Wayland first (`QT_QPA_PLATFORM="wayland;xcb"`) to guarantee flawless high-DPI scaling and crisp text on modern GNOME/KDE Wayland sessions, while perfectly falling back to X11 on legacy environments.
+> **Note on Display Servers:** The GUI defaults to X11 (`QT_QPA_PLATFORM="xcb"`) for maximum compatibility across all Linux distributions and display servers.
 
 ---
 
