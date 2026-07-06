@@ -75,6 +75,9 @@ class VantageGUI(QMainWindow):
         if svc.limited:
             self.statusBar().showMessage(tr("Service Error"), 0)
 
+        # ── System Tray (initialised early so pages can read tray_available) ──
+        self._init_tray()
+
         # ── UI tracking ───────────────────────────────────────────────
         self.pm_combos = []
         self.gpu_combos = []
@@ -201,9 +204,6 @@ class VantageGUI(QMainWindow):
         self.switch_tab(0)
         self._apply_theme(self.current_theme)
         self.load_state()
-
-        # ── System Tray ───────────────────────────────────────────────
-        self._init_tray()
 
         # Sensor timer
         self.timer = QTimer()
